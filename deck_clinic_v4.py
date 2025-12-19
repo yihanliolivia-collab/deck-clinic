@@ -16,15 +16,22 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom "High-Tech" CSS
+# Custom "High-Tech" CSS - NOW WITH FIXED TEXT COLORS
 st.markdown("""
 <style>
-    /* 1. Global Font: Monospace for that 'Terminal' feel */
-    body, .stMarkdown, h1, h2, h3, .stMetricLabel {
-        font-family: 'Courier New', Courier, monospace !important;
+    /* 1. Force Background and Text Colors */
+    .stApp {
+        background-color: #0E1117;
+        color: #E0E0E0; /* Light Gray Text for readability */
     }
     
-    /* 2. Neon Accents for Metrics */
+    /* 2. Global Font: Monospace for that 'Terminal' feel */
+    body, .stMarkdown, p, h1, h2, h3, li, .stMetricLabel {
+        font-family: 'Courier New', Courier, monospace !important;
+        color: #E0E0E0 !important;
+    }
+    
+    /* 3. Neon Accents for Metrics */
     div[data-testid="stMetricValue"] {
         font-size: 2.2rem;
         color: #00FFC2 !important; /* Neon Cyan */
@@ -32,14 +39,19 @@ st.markdown("""
         font-weight: 700;
     }
     
-    /* 3. Card/Container Styling */
+    /* 4. Card/Container Styling */
     .stExpander {
         border: 1px solid #333;
         border-radius: 4px;
-        background-color: #0E1117;
+        background-color: #161B22; /* Slightly lighter dark for contrast */
     }
     
-    /* 4. Custom Buttons */
+    /* 5. Fix Text Inside Expanders (This was likely the black-on-black issue) */
+    .streamlit-expanderContent p, .streamlit-expanderContent li {
+        color: #E0E0E0 !important;
+    }
+    
+    /* 6. Custom Buttons */
     div.stButton > button {
         background-color: #1E1E1E;
         color: #00FFC2;
@@ -48,11 +60,17 @@ st.markdown("""
     }
     div.stButton > button:hover {
         background-color: #00FFC2;
-        color: #000000;
+        color: #000000 !important; /* Black text on hover */
         box-shadow: 0 0 15px rgba(0, 255, 194, 0.6);
     }
     
-    /* 5. Hide Streamlit Branding (Optional) */
+    /* 7. Code Blocks */
+    code {
+        color: #FF79C6 !important; /* Pink for code highlights */
+        background-color: #282A36 !important;
+    }
+    
+    /* 8. Hide Streamlit Branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
