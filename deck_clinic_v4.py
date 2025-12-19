@@ -1,129 +1,206 @@
 import streamlit as st
 import google.generativeai as genai
-from pypdf import PdfReader
+import os
+import tempfile
+import json
+import pandas as pd
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import Chroma
-from langchain_core.documents import Document
-import os
-import shutil
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyPDFLoader
 
-# --- 1. SETUP & CONFIG ---
-st.set_page_config(page_title="Deck Clinic: Memory Edition", page_icon="🧠", layout="wide")
+# --- 1. 页面基础配置 ---
+st.set_page_config(
+    page_title="Deck Clinic V3: PM Edition", 
+    page_icon="🧠", 
+    layout="wide"
+)
 
-# Try to get the key from Streamlit's Secret Vault
+# 自定义 CSS：让评分卡看起来更专业
+st.markdown("""
+<style>
+    div[data-testid="stMetricValue"] {
+        font-size: 1.8rem;
+    }
+    .big-font {
+        font-size:20px !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- 2. 安全连接 Gemini ---
 try:
     api_key = st.secrets["GOOGLE_API_KEY"]
-except:
-    # If running locally without secrets file, warn the user
-    st.error("No API Key found in secrets!")
+except (FileNotFoundError, KeyError):
+    api_key = os.environ.get("GOOGLE_API_KEY")
+
+if not api_key:
+    st.error("🚨 严重错误：未找到 API Key，请检查 Secrets 设置。")
+    st.stop()
 
 os.environ["GOOGLE_API_KEY"] = api_key
 genai.configure(api_key=api_key)
-model = genai.GenerativeModel('models/gemini-flash-latest')
 
-# Initialize Embeddings (The tool that turns text into math)
-embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+# --- 3. 核心引擎 (带缓存) ---
+@st.cache_resource
+def get_embedding_model():
+    return GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
-# Define where to save the "Brain" on your computer
-PERSIST_DIRECTORY = "./deck_memory_db"
+embeddings = get_embedding_model()
+PERSIST_DIRECTORY = "deck_memory_db"
 
-# --- 2. THE MEMORY FUNCTIONS (RAG) ---
-def save_to_brain(uploaded_file):
-    """Reads a PDF and saves it to the Vector Database"""
-    reader = PdfReader(uploaded_file)
-    text = ""
-    for page in reader.pages:
-        text += page.extract_text()
-    
-    # 1. Chunking: We split the text so the AI can find specific parts
-    # (Simple character split for MVP)
-    chunk_size = 1000
-    chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
-    
-    # 2. Turn into "Documents" for LangChain
-    docs = [Document(page_content=chunk) for chunk in chunks]
-    
-    # 3. Save to ChromaDB
-    # If DB exists, append; if not, create.
-    db = Chroma.from_documents(
-        documents=docs, 
-        embedding=embeddings, 
-        persist_directory=PERSIST_DIRECTORY
-    )
-    return len(chunks)
-
-def clear_brain():
-    """Deletes the memory to start fresh"""
-    if os.path.exists(PERSIST_DIRECTORY):
-        shutil.rmtree(PERSIST_DIRECTORY)
-
-# --- 3. UI LAYOUT ---
-st.title("🧠 Deck Clinic: With Corporate Memory")
-st.markdown("**Compare your new draft against your company's 'Gold Standard' history.**")
-
-# --- SIDEBAR: KNOWLEDGE BASE ---
+# --- 4. 侧边栏：知识库 (Reference) ---
 with st.sidebar:
     st.header("📚 Knowledge Base")
-    st.info("Upload your BEST past proposals here to train the AI.")
+    st.caption("Role: Head of Product Management")
     
-    training_file = st.file_uploader("Upload 'Gold Standard' PDF", type="pdf", key="train")
+    uploaded_file = st.file_uploader("Upload 'Gold Standard' PDF", type="pdf")
     
-    if training_file and st.button("🧠 Train AI on this Deck"):
-        with st.spinner("Embedding knowledge..."):
-            num_chunks = save_to_brain(training_file)
-            st.success(f"Learned! Stored {num_chunks} knowledge chunks.")
+    if uploaded_file and st.button("Train Knowledge Base"):
+        with st.spinner("Processing Reference Material..."):
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                tmp_file.write(uploaded_file.read())
+                tmp_file_path = tmp_file.name
+
+            loader = PyPDFLoader(tmp_file_path)
+            raw_docs = loader.load()
+            
+            # 这里的切片是为了向量检索，不是给 LLM 读的
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=4000, chunk_overlap=500)
+            docs = text_splitter.split_documents(raw_docs)
+            
+            vector_db = Chroma.from_documents(
+                documents=docs,
+                embedding=embeddings,
+                persist_directory=PERSIST_DIRECTORY
+            )
+            vector_db.persist()
+            st.success(f"✅ Learned from {len(docs)} chunks of knowledge!")
+
+# --- 5. 主界面：提案诊断 ---
+st.title("🏥 Deck Clinic: Strategic Review")
+st.markdown("Your **AI Product Manager** will review your draft and generate a structured scorecard.")
+
+col1, col2 = st.columns([2, 3]) # 左边传文件，右边看图表
+
+with col1:
+    st.subheader("📄 Input Draft")
+    target_pdf = st.file_uploader("Upload Proposal Draft", type="pdf", key="target")
+    analyze_btn = st.button("🚀 Run PM Review", type="primary", use_container_width=True)
+
+if target_pdf and analyze_btn:
+    # A. 准备文件
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        tmp_file.write(target_pdf.read())
+        draft_path = tmp_file.name
     
-    if st.button("🗑️ Reset Memory"):
-        clear_brain()
-        st.warning("Memory wiped.")
+    loader = PyPDFLoader(draft_path)
+    draft_docs = loader.load()
+    # 拼接全文
+    draft_text = " ".join([d.page_content for d in draft_docs])
 
-# --- MAIN: THE REVIEW AREA ---
-st.header("🚀 Review New Draft")
-target_file = st.file_uploader("Upload New Proposal Draft", type="pdf", key="target")
-
-if target_file and st.button("Analyze with Context"):
-    with st.spinner("Consulting the Knowledge Base..."):
-        # 1. Read the New Draft
-        reader = PdfReader(target_file)
-        draft_text = ""
-        for page in reader.pages:
-            draft_text += page.extract_text()
-
-        # 2. RETRIEVAL: Ask the DB for relevant "Gold Standard" examples
-        # We ask: "What does a good proposal look like?" based on the draft's content
+    # B. 检索参考资料 (RAG)
+    with st.spinner("1/3 Retrieving Knowledge..."):
         try:
-            db = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=embeddings)
-            # Find 3 most similar chunks from the "Good Deck"
-            results = db.similarity_search(draft_text[:2000], k=3)
-            knowledge_context = "\n\n".join([doc.page_content for doc in results])
+            vector_db = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=embeddings)
+            results = vector_db.similarity_search(draft_text, k=3)
+            knowledge_context = "\n".join([doc.page_content for doc in results])
+        except:
+            knowledge_context = "General Top Tech Company Standards"
+
+    # C. 核心 Prompt (结合了你的 Head of PM 人设 + JSON 强制格式)
+    prompt = f"""
+    You are the Head of Product Management in a Top Tech company reviewing a proposal draft.
+    
+    ### REFERENCE (Gold Standard Examples):
+    {knowledge_context}
+    
+    ### DRAFT TO REVIEW:
+    {draft_text[:500000]} 
+    
+    ### INSTRUCTIONS:
+    1. Compare the Draft against the style, tone, and logic of the Reference.
+    2. Output the result in **STRICT JSON FORMAT** only. Do not add markdown or intro text.
+    
+    ### JSON STRUCTURE (Fill this in):
+    {{
+        "scores": {{
+            "Strategic_Fit": <int 0-100>,
+            "Clarity": <int 0-100>,
+            "Persuasion": <int 0-100>
+        }},
+        "executive_summary_feedback": "<string: Summary of the biggest gap>",
+        "critical_issues": [
+            {{
+                "section": "<string: Identify Section Header>",
+                "issue": "<string: What is wrong>",
+                "fix": "<string: Actionable advice>"
+            }},
+            {{
+                "section": "<string>", "issue": "<string>", "fix": "<string>"
+            }}
+        ],
+        "rewrite_showcase": {{
+            "original_text": "<string: Quote a weak paragraph>",
+            "improved_version": "<string: Rewrite it in Top Tech PM style>",
+            "why": "<string: Explain the reasoning>"
+        }}
+    }}
+    """
+
+    # D. 生成与解析
+    with st.spinner("2/3 Analyzing Logic Flow..."):
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        # 强制请求 JSON (Gemini 1.5 特性)
+        response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
+        
+    with st.spinner("3/3 Rendering Dashboard..."):
+        try:
+            # 解析 JSON
+            data = json.loads(response.text)
             
-            st.success("✅ Retrieved relevant style guides from History.")
-            with st.expander("See what the AI remembered from the Gold Deck"):
-                st.write(knowledge_context)
+            # --- 展示区域 (Right Column) ---
+            with col2:
+                st.subheader("📊 PM Scorecard")
+                
+                # 1. 数字指标
+                s1, s2, s3 = st.columns(3)
+                s1.metric("Strategy", f"{data['scores']['Strategic_Fit']}/100")
+                s2.metric("Clarity", f"{data['scores']['Clarity']}/100")
+                s3.metric("Persuasion", f"{data['scores']['Persuasion']}/100")
+                
+                # 2. 柱状图 (Visual)
+                chart_df = pd.DataFrame({
+                    "Metric": list(data['scores'].keys()),
+                    "Score": list(data['scores'].values())
+                })
+                st.bar_chart(chart_df, x="Metric", y="Score", color="#FF4B4B")
+
+            # --- 详细报告区 (Bottom) ---
+            st.divider()
             
-            # 3. GENERATION: The Comparison Prompt
-            prompt = f"""
-            ROLE: You are a Senior Editor enforcing company consistency.
+            # Tab 1: 关键问题
+            st.subheader("🛑 Critical Gaps & Fixes")
+            st.info(f"**PM Summary:** {data['executive_summary_feedback']}")
             
-            CONTEXT (THE GOLD STANDARD):
-            The following text is from a past SUCCESSFUL proposal (The "Gold Standard"):
-            {knowledge_context}
-            
-            TASK:
-            Review the "NEW DRAFT" below. 
-            Compare it to the style/tone/structure of the "Gold Standard".
-            
-            NEW DRAFT:
-            {draft_text}
-            
-            OUTPUT:
-            1. **Style Match Score (0-100%):** How close is this to our winning style?
-            2. **Gap Analysis:** What is the New Draft doing differently than the Gold Standard? (e.g., Is it too wordy? Is the data format different?)
-            3. **Rewrite:** Rewrite the Introduction of the New Draft to perfectly mimic the Gold Standard's voice.
-            """
-            
-            response = model.generate_content(prompt)
-            st.markdown(response.text)
-            
-        except Exception as e:
-            st.error("Memory Error: Did you upload a Gold Standard deck first? (DB not found)")
+            for item in data['critical_issues']:
+                with st.expander(f"📍 Issue in: {item['section']}"):
+                    st.write(f"**Problem:** {item['issue']}")
+                    st.success(f"**Action:** {item['fix']}")
+
+            # Tab 2: 重写示范
+            st.divider()
+            st.subheader("✨ Before vs After Showcase")
+            c_old, c_new = st.columns(2)
+            with c_old:
+                st.warning("🔴 Original Draft")
+                st.write(data['rewrite_showcase']['original_text'])
+            with c_new:
+                st.success("🟢 PM Optimized")
+                st.write(data['rewrite_showcase']['improved_version'])
+            st.caption(f"💡 Logic: {data['rewrite_showcase']['why']}")
+
+        except json.JSONDecodeError:
+            st.error("🚨 JSON Parsing Error. The AI response was not valid JSON.")
+            with st.expander("Raw Response Debug"):
+                st.text(response.text)
