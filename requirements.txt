@@ -7,3 +7,5 @@ langchain-core
 chromadb
 pypdf
 pandas
+langchain-text-splitters
+langchain-text-splitters
