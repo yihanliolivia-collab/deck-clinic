@@ -155,7 +155,7 @@ if target_pdf and analyze_btn:
     # D. Generate & Parse
     with st.spinner("2/3 Analyzing Logic Flow..."):
         # Corrected model name to ensure JSON mode works
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-flash-latest')
         response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
         
     with st.spinner("3/3 Rendering Dashboard..."):
