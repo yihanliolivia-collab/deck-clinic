@@ -50,7 +50,13 @@ File "/home/adminuser/venv/lib/python3.13/site-packages/google/api_core/retry/re
 File "/home/adminuser/venv/lib/python3.13/site-packages/google/api_core/timeout.py", line 130, in func_with_timeout
     return func(*args, **kwargs)
 File "/home/adminuser/venv/lib/python3.13/site-packages/google/api_core/grpc_helpers.py", line 77, in error_remapped_callable
-    raise exceptions.from_grpc_error(exc) from exclinic V3: PM Edition", 
+ # CORRECT LINE (Option A: If this is inside set_page_config)
+page_title="Deck Clinic V3: PM Edition",
+
+# OR
+
+# CORRECT LINE (Option B: If this is a st.title call)
+st.title("Deck Clinic V3: PM Edition")
     page_icon="🧠", 
     layout="wide"
 )
