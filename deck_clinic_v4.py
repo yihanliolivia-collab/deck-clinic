@@ -150,7 +150,7 @@ with col1:
     target_pdf = st.file_uploader("Upload Draft PDF", type="pdf", key="target")
     analyze_btn = st.button("RUN DIAGNOSTIC", type="primary", use_container_width=True)
 
-# 1. Reset Session if NEW file uploaded
+# 1. Reset Session if NEW file uploadedx
 if target_pdf and 'last_uploaded' not in st.session_state:
     st.session_state.last_uploaded = target_pdf.name
     st.session_state.analysis_data = None
@@ -348,7 +348,7 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
                 target = item.get('target_section', 'General Logic')
                 
                 header_text = f"📄 Page {page_num}: {target}"
-                if len(header_text) > 60: header_text = header_text[:60] + "..."
+                if len(header_text) > 60: header_text = header_text[:150]
                 st.markdown(f"##### {header_text}")
                 
                 # --- NEW: SHOW SLIDE IMAGE IF AVAILABLE ---
