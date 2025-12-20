@@ -6,37 +6,38 @@ import json
 import pandas as pd
 import csv
 import datetime
+import uuid
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 
-# --- HELPER FUNCTIONS (LOGGING) ---
-def log_feedback(rating, comment, doc_type):
+# --- HELPER FUNCTIONS (LOGGING WITH SESSION ID) ---
+def log_feedback(session_id, rating, comment, doc_type):
     feedback_file = "feedback_logs.csv"
     file_exists = os.path.isfile(feedback_file)
     with open(feedback_file, mode='a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         if not file_exists:
-            writer.writerow(["Timestamp", "Rating", "Comment", "Doc Type"])
-        writer.writerow([datetime.datetime.now(), rating, comment, doc_type])
+            writer.writerow(["Timestamp", "Session ID", "Rating", "Comment", "Doc Type"])
+        writer.writerow([datetime.datetime.now(), session_id, rating, comment, doc_type])
 
-def log_interaction(doc_type, scores, exec_summary):
+def log_interaction(session_id, filename, doc_type, scores, exec_summary):
     log_file = "clinic_logs.csv"
     file_exists = os.path.isfile(log_file)
     with open(log_file, mode='a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         if not file_exists:
-            writer.writerow(["Timestamp", "Doc Type", "Logic Score", "Clarity Score", "Impact Score", "Summary"])
+            writer.writerow(["Timestamp", "Session ID", "Filename", "Doc Type", "Logic Score", "Clarity Score", "Impact Score", "Summary"])
         writer.writerow([
-            datetime.datetime.now(), doc_type,
+            datetime.datetime.now(), session_id, filename, doc_type,
             scores.get('Logic', 0), scores.get('Clarity', 0), scores.get('Impact', 0),
             exec_summary
         ])
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
-    page_title="Deck Clinic: Approval Accelerator",
+    page_title="Deck Clinic: Data Lake Edition",
     page_icon="💾",
     layout="wide"
 )
@@ -68,6 +69,10 @@ if not api_key:
 
 os.environ["GOOGLE_API_KEY"] = api_key
 genai.configure(api_key=api_key)
+
+# Ensure "user_uploads" folder exists
+if not os.path.exists("user_uploads"):
+    os.makedirs("user_uploads")
 
 # --- 4. CORE ENGINE ---
 @st.cache_resource
@@ -101,36 +106,50 @@ with st.sidebar:
 
     st.divider()
     
-    # 🔐 UPDATED ADMIN PANEL
-    with st.expander("🔐 ADMIN PANEL"):
+    # 🔐 MASTER ADMIN PANEL
+    with st.expander("🔐 ADMIN PANEL (MASTER VIEW)"):
         admin_pass = st.text_input("Enter Admin Key", type="password")
         if admin_pass == "gemini2025": 
             st.success("ACCESS GRANTED")
             
-            # ✅ NEW: Show Feedback Logs
-            if st.checkbox("Show User Feedback"):
-                if os.path.exists("feedback_logs.csv"):
-                    st.markdown("### 🗣️ User Feedback")
-                    st.dataframe(pd.read_csv("feedback_logs.csv"))
-                else:
-                    st.warning("No feedback recorded yet.")
-
-            st.divider()
-
-            # ✅ EXISTING: Show System Logs
-            if st.checkbox("Show Logic Logs"):
-                if os.path.exists("clinic_logs.csv"):
-                    df = pd.read_csv("clinic_logs.csv")
-                    st.markdown("### 🚦 System Health")
-                    st.dataframe(df)
-                    st.write(f"**Average Logic Score:** {df['Logic Score'].mean():.1f}/100")
-                else:
-                    st.warning("No logs found.")
+            # --- THE DATA LAKE MERGE ---
+            if os.path.exists("clinic_logs.csv") and os.path.exists("feedback_logs.csv"):
+                df_system = pd.read_csv("clinic_logs.csv")
+                df_feedback = pd.read_csv("feedback_logs.csv")
+                
+                # Clean headers just in case
+                df_system.columns = df_system.columns.str.strip()
+                df_feedback.columns = df_feedback.columns.str.strip()
+                
+                try:
+                    # LEFT JOIN System Logs with Feedback on Session ID
+                    df_master = pd.merge(df_system, df_feedback[['Session ID', 'Rating', 'Comment']], on='Session ID', how='left')
+                    
+                    st.markdown("### 🏆 Master Performance Table")
+                    st.caption("Combined View: Input (File) + Output (Score) + Feedback (Rating)")
+                    st.dataframe(df_master)
+                    
+                    # Highlight Conflicts
+                    st.markdown("### 🚨 Conflict Detector")
+                    conflicts = df_master[(df_master['Logic Score'] > 80) & (df_master['Rating'] == 'Negative')]
+                    if not conflicts.empty:
+                        st.error(f"Found {len(conflicts)} cases where AI was confident but User was unhappy!")
+                        st.dataframe(conflicts)
+                    else:
+                        st.info("No obvious conflicts found.")
+                        
+                except Exception as e:
+                    st.error(f"Merge Error: {e}. Check CSV headers.")
             
-            # Maintenance
-            if st.button("Clear ALL Logs"):
+            elif os.path.exists("clinic_logs.csv"):
+                st.dataframe(pd.read_csv("clinic_logs.csv"))
+            
+            if st.button("Clear ALL Data"):
                 if os.path.exists("clinic_logs.csv"): os.remove("clinic_logs.csv")
                 if os.path.exists("feedback_logs.csv"): os.remove("feedback_logs.csv")
+                for f in os.listdir("user_uploads"):
+                    file_path = os.path.join("user_uploads", f)
+                    if os.path.isfile(file_path): os.remove(file_path)
                 st.rerun()
 
         elif admin_pass:
@@ -150,10 +169,13 @@ with col1:
 # 1. Reset Session if NEW file uploaded
 if target_pdf and 'last_uploaded' not in st.session_state:
     st.session_state.last_uploaded = target_pdf.name
-    st.session_state.analysis_data = None 
+    st.session_state.analysis_data = None
+    # GENERATE NEW SESSION ID
+    st.session_state.session_id = str(uuid.uuid4())[:8] 
 elif target_pdf and st.session_state.get('last_uploaded') != target_pdf.name:
     st.session_state.last_uploaded = target_pdf.name
     st.session_state.analysis_data = None
+    st.session_state.session_id = str(uuid.uuid4())[:8]
 
 # 2. Main Logic Flow
 if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysis_data')):
@@ -161,12 +183,15 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
     # PHASE A: GENERATION (Only runs if data is missing!)
     if not st.session_state.get('analysis_data'):
         
-        # A. File Processing
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-            tmp_file.write(target_pdf.read())
-            draft_path = tmp_file.name
+        # A. File Processing & SAVING TO VAULT
+        session_id = st.session_state.session_id
+        safe_filename = f"{session_id}_{target_pdf.name}"
+        save_path = os.path.join("user_uploads", safe_filename)
         
-        loader = PyPDFLoader(draft_path)
+        with open(save_path, "wb") as f:
+            f.write(target_pdf.getbuffer())
+        
+        loader = PyPDFLoader(save_path)
         draft_docs = loader.load()
         
         # Inject Page Markers
@@ -192,7 +217,7 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
         else:
             base_instruction = "ROLE: CEO. FRAMEWORK: BLUF, Extreme Brevity."
 
-        # THE CORRECTED V7 PROMPT
+        # ✅ CHECKED: THIS CONTAINS THE FULL USER PROMPT
         prompt = f"""
         {base_instruction}
         
@@ -256,23 +281,24 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
             model = genai.GenerativeModel('gemini-flash-latest')
             response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
             
-            # SAVE TO SESSION STATE
             st.session_state.analysis_data = json.loads(response.text)
             
-            # Log the System Run (Only once per generation)
+            # LOG WITH SESSION ID
             log_interaction(
+                session_id=session_id,
+                filename=safe_filename,
                 doc_type=doc_type,
                 scores=st.session_state.analysis_data.get('scores', {}),
                 exec_summary=st.session_state.analysis_data.get('executive_summary', 'N/A')
             )
 
-    # PHASE B: RENDERING (Runs every time, pulls from Session State)
+    # PHASE B: RENDERING
     data = st.session_state.analysis_data
     
     with col2:
-        st.markdown("### SCORECARD")
+        st.markdown(f"### SCORECARD (ID: `{st.session_state.session_id}`)")
         s1, s2, s3 = st.columns(3)
-        # Safe getters to prevent crash if data incomplete
+        # Safe getters
         s1.metric("LOGIC", f"{data.get('scores', {}).get('Logic', 0)}")
         s2.metric("CLARITY", f"{data.get('scores', {}).get('Clarity', 0)}")
         s3.metric("IMPACT", f"{data.get('scores', {}).get('Impact', 0)}")
@@ -286,15 +312,15 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
         with fb_col1:
             user_comment = st.text_input("Feedback (Optional)", placeholder="E.g. The logic check was too harsh...")
         with fb_col2:
-            st.write("") # Spacer
+            st.write("") 
             st.write("")
             b1, b2 = st.columns(2)
             if b1.button("👍"):
-                log_feedback("Positive", user_comment, doc_type)
-                st.toast("Thanks for the thumbs up!", icon="👍")
+                log_feedback(st.session_state.session_id, "Positive", user_comment, doc_type)
+                st.toast("Feedback Saved!", icon="👍")
             if b2.button("👎"):
-                log_feedback("Negative", user_comment, doc_type)
-                st.toast("We'll improve based on this.", icon="📉")
+                log_feedback(st.session_state.session_id, "Negative", user_comment, doc_type)
+                st.toast("Feedback Saved!", icon="📉")
 
     st.divider()
     st.info(f"**EXECUTIVE SUMMARY:** {data.get('executive_summary', 'No summary generated.')}")
@@ -314,6 +340,7 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
         with col_b:
             st.caption("🟢 OPTIMIZED FLOW")
             for line in nav_data.get('revised_headlines', []): st.markdown(f"**• {line}**")
+        
         if data.get('scores', {}).get('Logic', 0) < 75: st.error("⚠️ NARRATIVE THREAD BROKEN")
         else: st.success("✅ NARRATIVE THREAD STABLE")
 
@@ -325,7 +352,6 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
                 page_num = item.get('page_number', '?')
                 target = item.get('target_section', 'General Logic')
                 
-                # Truncate Header for UI cleanliness
                 header_text = f"📄 Page {page_num}: {target}"
                 if len(header_text) > 60: header_text = header_text[:60] + "..."
                 st.markdown(f"##### {header_text}")
