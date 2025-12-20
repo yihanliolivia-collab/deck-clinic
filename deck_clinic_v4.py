@@ -151,9 +151,10 @@ st.caption(f"PROTOCOL: {doc_type} | CORE: gemini-flash-latest")
 
 col1, col2 = st.columns([2, 3]) 
 
-with col1:gi
+with col1:
+    # ✅ These lines are indented exactly 4 spaces
     st.markdown("### INPUT FEED")
-    target_pdf = st.file_uploader("Upload Your Draft PDF", type="pdf", key="target")
+    target_pdf = st.file_uploader("Upload Draft PDF", type="pdf", key="target")
     analyze_btn = st.button("RUN DIAGNOSTIC", type="primary", use_container_width=True)
 
 if target_pdf and analyze_btn:
