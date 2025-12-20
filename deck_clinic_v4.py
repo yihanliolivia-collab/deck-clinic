@@ -11,7 +11,7 @@ from langchain_community.document_loaders import PyPDFLoader
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
-    page_title="Deck Clinic V6: Narrative Engine",
+    page_title="Deck Clinic: Approval Accelerator",
     page_icon="💾",
     layout="wide"
 )
@@ -146,7 +146,7 @@ with st.sidebar:
             st.success(f"System Index Updated: {len(docs)} chunks.")
 
 # --- 6. MAIN INTERFACE ---
-st.title("💾 DECK CLINIC V6")
+st.title("💾 DECK CLINIC: Your Powerful Deck GP")
 st.caption(f"PROTOCOL: {doc_type} | CORE: gemini-flash-latest") 
 
 col1, col2 = st.columns([2, 3]) 
