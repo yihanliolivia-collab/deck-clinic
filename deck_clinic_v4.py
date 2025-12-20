@@ -11,8 +11,10 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
+# NEW: Library for Vision
+from pdf2image import convert_from_path 
 
-# --- HELPER FUNCTIONS (LOGGING WITH SESSION ID) ---
+# --- HELPER FUNCTIONS ---
 def log_feedback(session_id, rating, comment, doc_type):
     feedback_file = "feedback_logs.csv"
     file_exists = os.path.isfile(feedback_file)
@@ -37,8 +39,8 @@ def log_interaction(session_id, filename, doc_type, scores, exec_summary):
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
-    page_title="Deck Clinic: Data Lake Edition",
-    page_icon="💾",
+    page_title="Deck Clinic: Data Lake Edition (Vision)",
+    page_icon="👁️",
     layout="wide"
 )
 
@@ -70,7 +72,6 @@ if not api_key:
 os.environ["GOOGLE_API_KEY"] = api_key
 genai.configure(api_key=api_key)
 
-# Ensure "user_uploads" folder exists
 if not os.path.exists("user_uploads"):
     os.makedirs("user_uploads")
 
@@ -106,69 +107,41 @@ with st.sidebar:
 
     st.divider()
     
-    # 🔐 MASTER ADMIN PANEL (With "Empty State" Fix)
+    # ADMIN PANEL
     with st.expander("🔐 ADMIN PANEL (MASTER VIEW)"):
         admin_pass = st.text_input("Enter Admin Key", type="password")
         if admin_pass == "gemini2025": 
             st.success("ACCESS GRANTED")
-            
-            # Check file status
             has_logs = os.path.exists("clinic_logs.csv")
             has_feedback = os.path.exists("feedback_logs.csv")
             
-            # 1. SHOW DATA (If exists)
             if has_logs:
                 try:
-                    # Load System Logs
                     df_system = pd.read_csv("clinic_logs.csv", on_bad_lines='skip')
-                    df_system.columns = df_system.columns.str.strip() # Clean headers
-                    
+                    df_system.columns = df_system.columns.str.strip()
                     if has_feedback:
-                        # Load & Merge Feedback
                         df_feedback = pd.read_csv("feedback_logs.csv", on_bad_lines='skip')
                         df_feedback.columns = df_feedback.columns.str.strip()
-                        
-                        # Merge
                         df_master = pd.merge(df_system, df_feedback[['Session ID', 'Rating', 'Comment']], on='Session ID', how='left')
-                        st.markdown("### 🏆 Master Performance Table")
                         st.dataframe(df_master)
-                        
-                        # Conflict Check
-                        if 'Logic Score' in df_master.columns and 'Rating' in df_master.columns:
-                            conflicts = df_master[(df_master['Logic Score'] > 80) & (df_master['Rating'] == 'Negative')]
-                            if not conflicts.empty:
-                                st.error(f"Found {len(conflicts)} conflicts!")
-                                st.dataframe(conflicts)
                     else:
-                        # System Logs Only
-                        st.markdown("### 🚦 System Logs (No Feedback Yet)")
                         st.dataframe(df_system)
-
                 except Exception as e:
                     st.error(f"⚠️ Error reading logs: {e}")
-            
             else:
-                # 2. EMPTY STATE (If no files)
-                st.info("📭 Database is clean. Upload and run a deck to generate new logs.")
-
-            st.divider()
+                st.info("📭 Database is clean.")
             
-            # 3. MAINTENANCE
-            st.markdown("### 🛠️ Maintenance")
+            st.divider()
             if st.button("🔴 HARD RESET (Clear All Data)", type="primary"):
                 if os.path.exists("clinic_logs.csv"): os.remove("clinic_logs.csv")
                 if os.path.exists("feedback_logs.csv"): os.remove("feedback_logs.csv")
-                if os.path.exists("user_uploads"):
-                    for f in os.listdir("user_uploads"):
-                        os.remove(os.path.join("user_uploads", f))
+                for f in os.listdir("user_uploads"):
+                    os.remove(os.path.join("user_uploads", f))
                 st.rerun()
 
-        elif admin_pass:
-            st.error("Access Denied")
-            
 # --- 6. MAIN INTERFACE ---
-st.title(" 🎠DECK Playground")
-st.caption(f"PROTOCOL: {doc_type} | CORE: gemini-flash-latest") 
+st.title(" 🎠DECK Playground (Vision)")
+st.caption(f"PROTOCOL: {doc_type} | CORE: gemini-1.5-flash") 
 
 col1, col2 = st.columns([2, 3]) 
 
@@ -181,20 +154,21 @@ with col1:
 if target_pdf and 'last_uploaded' not in st.session_state:
     st.session_state.last_uploaded = target_pdf.name
     st.session_state.analysis_data = None
-    # GENERATE NEW SESSION ID
+    st.session_state.images = None # Store images
     st.session_state.session_id = str(uuid.uuid4())[:8] 
 elif target_pdf and st.session_state.get('last_uploaded') != target_pdf.name:
     st.session_state.last_uploaded = target_pdf.name
     st.session_state.analysis_data = None
+    st.session_state.images = None
     st.session_state.session_id = str(uuid.uuid4())[:8]
 
 # 2. Main Logic Flow
 if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysis_data')):
     
-    # PHASE A: GENERATION (Only runs if data is missing!)
+    # PHASE A: GENERATION
     if not st.session_state.get('analysis_data'):
         
-        # A. File Processing & SAVING TO VAULT
+        # A. File Processing
         session_id = st.session_state.session_id
         safe_filename = f"{session_id}_{target_pdf.name}"
         save_path = os.path.join("user_uploads", safe_filename)
@@ -202,15 +176,23 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
         with open(save_path, "wb") as f:
             f.write(target_pdf.getbuffer())
         
+        # --- NEW: CONVERT PDF TO IMAGES ---
+        with st.spinner("Processing Vision (Converting Slides)..."):
+            try:
+                images = convert_from_path(save_path)
+                st.session_state.images = images
+            except Exception as e:
+                st.error(f"Vision Error (Is Poppler installed?): {e}")
+                st.stop()
+        
+        # B. Text Extraction for RAG
         loader = PyPDFLoader(save_path)
         draft_docs = loader.load()
-        
-        # Inject Page Markers
         draft_text = ""
         for i, doc in enumerate(draft_docs):
             draft_text += f"\n\n--- [PAGE {i+1}] ---\n{doc.page_content}"
 
-        # B. RAG Retrieval
+        # C. RAG Retrieval
         with st.spinner("Retrieving Context..."):
             try:
                 vector_db = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=embeddings)
@@ -219,7 +201,7 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
             except:
                 knowledge_context = "Standard Top Tech Company Protocols"
 
-        # C. Prompt Construction
+        # D. Prompt Construction (YOUR ORIGINAL PROMPT + VISION NOTE)
         base_instruction = ""
         if "Strategy" in doc_type:
             base_instruction = "ROLE: VP of Strategy. FRAMEWORK: Amazon Clarity, McKinsey Structure."
@@ -228,7 +210,6 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
         else:
             base_instruction = "ROLE: CEO. FRAMEWORK: BLUF, Extreme Brevity."
 
-        # ✅ CHECKED: THIS CONTAINS THE FULL USER PROMPT
         prompt = f"""
         {base_instruction}
         
@@ -238,14 +219,17 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
         ### DRAFT TEXT:
         {draft_text[:50000]} 
         
+        ### VISUAL INPUT:
+        I have provided images of the slides. Please analyze them alongside the text.
+        
         ### INSTRUCTIONS:
-        1. **STEP 1 (HIDDEN BRAINSTORM):** Read the text. Specifically look for logical gaps. Ask yourself: "Does the problem prove the solution?" "Is the data specific?"
+        1. **STEP 1 (HIDDEN BRAINSTORM):** Read the text AND look at the images. Look for logical gaps and visual clutter. Ask yourself: "Does the problem prove the solution?" "Is the data specific?" "Does the chart support the headline?"
         2. **STEP 2 (SCORING):** Only assign scores AFTER you have written the critique.
         3. **STEP 3 (EXTRACTION):** Extract the current headlines to identify the existing narrative.
         4. **STEP 4 (Headline & Narrative Audit):**
            - Critique the current headlines: Do they tell a story if read in isolation? Are they descriptive or generic?
            - Suggest a **"Revised Headline Flow"**: A list of rewritten headlines that guide the reader logically from the problem to the solution.
-        5. **STEP 5 (CONTENT RIGOR):** Scan the **body paragraphs and bullet points** for vague claims (e.g., "significant growth", "optimized synergies"). Ignore the headlines for this step.
+        5. **STEP 5 (CONTENT RIGOR):** Scan the **body paragraphs, bullet points, and charts** for vague claims (e.g., "significant growth", "optimized synergies").
        
         ### EXAMPLES OF GOOD CRITIQUES (FEW-SHOT):
         
@@ -279,7 +263,7 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
                 {{
                     "page_number": "<int: The page number extracted from the [PAGE X] marker>",
                     "target_section": "<string: Quote the specific BULLET POINT or SENTENCE (not the headline)>",
-                    "issue": "<string: Specific critique of the evidence/data>",
+                    "issue": "<string: Specific critique of the evidence/data OR Visual issue>",
                     "improved_version": "<string: Rewrite the bullet point to be data-driven and specific>",
                     "why": "<string: Why this is better>"
                 }}
@@ -287,14 +271,14 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
         }}
         """
 
-        # D. Generation
-        with st.spinner("Processing Logic Matrix..."):
-            model = genai.GenerativeModel('gemini-flash-latest')
-            response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
+        # E. Generation (NOW MULTIMODAL)
+        with st.spinner("Processing Logic & Vision..."):
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            # WE PASS THE PROMPT TEXT + THE LIST OF IMAGES
+            response = model.generate_content([prompt, *st.session_state.images], generation_config={"response_mime_type": "application/json"})
             
             st.session_state.analysis_data = json.loads(response.text)
             
-            # LOG WITH SESSION ID
             log_interaction(
                 session_id=session_id,
                 filename=safe_filename,
@@ -309,7 +293,6 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
     with col2:
         st.markdown(f"### SCORECARD (ID: `{st.session_state.session_id}`)")
         s1, s2, s3 = st.columns(3)
-        # Safe getters
         s1.metric("LOGIC", f"{data.get('scores', {}).get('Logic', 0)}")
         s2.metric("CLARITY", f"{data.get('scores', {}).get('Clarity', 0)}")
         s3.metric("IMPACT", f"{data.get('scores', {}).get('Impact', 0)}")
@@ -358,6 +341,9 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
     with tab2:
         st.markdown("#### 🔬 Surgical Reconstruction")
         st.caption("Specific text edits to improve Logic, Clarity, and Impact.")
+        
+        images = st.session_state.images
+        
         for i, item in enumerate(data.get('section_deep_dive', [])):
             with st.container():
                 page_num = item.get('page_number', '?')
@@ -367,6 +353,16 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
                 if len(header_text) > 60: header_text = header_text[:60] + "..."
                 st.markdown(f"##### {header_text}")
                 
+                # --- NEW: SHOW SLIDE IMAGE IF AVAILABLE ---
+                try:
+                    p_idx = int(page_num) - 1
+                    if images and 0 <= p_idx < len(images):
+                        with st.expander(f"👁️ View Slide {page_num} Snapshot"):
+                            st.image(images[p_idx], use_container_width=True)
+                except:
+                    pass
+                # ------------------------------------------
+
                 c1, c2 = st.columns([1, 2], gap="large")
                 with c1:
                     st.markdown('<div class="issue-tag">THE SYMPTOM (ISSUE)</div>', unsafe_allow_html=True)
