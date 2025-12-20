@@ -127,7 +127,7 @@ with st.sidebar:
     
     # Knowledge Base Uploader
     st.caption("📂 KNOWLEDGE BASE")
-    uploaded_file = st.file_uploader("Upload 'Gold Standard' PDF", type="pdf")
+    uploaded_file = st.file_uploader("Upload 'Gold Standard' PDF: Deck best practice if you have one.Don't worry, we have added best example in our database.", type="pdf")
     
     if uploaded_file and st.button("TRAIN SYSTEM"):
         with st.spinner("Indexing..."):
@@ -146,13 +146,13 @@ with st.sidebar:
             st.success(f"System Index Updated: {len(docs)} chunks.")
 
 # --- 6. MAIN INTERFACE ---
-st.title("💾 DECK CLINIC: Your Powerful Deck GP")
+st.title(" 🎠DECK Playground: Your Powerful Deck GP")
 st.caption(f"PROTOCOL: {doc_type} | CORE: gemini-flash-latest") 
 
 col1, col2 = st.columns([2, 3]) 
 
-with col1:
-    st.markdown("### INPUT FEED")
+with col1:gi
+    st.markdown("### UPLOAD YOUR DECK HERE")
     target_pdf = st.file_uploader("Upload Draft PDF", type="pdf", key="target")
     analyze_btn = st.button("RUN DIAGNOSTIC", type="primary", use_container_width=True)
 
