@@ -106,50 +106,61 @@ with st.sidebar:
 
     st.divider()
     
-    # 🔐 MASTER ADMIN PANEL
+    # 🔐 MASTER ADMIN PANEL (ROBUST VERSION)
     with st.expander("🔐 ADMIN PANEL (MASTER VIEW)"):
         admin_pass = st.text_input("Enter Admin Key", type="password")
         if admin_pass == "gemini2025": 
             st.success("ACCESS GRANTED")
             
-            # --- THE DATA LAKE MERGE ---
-            if os.path.exists("clinic_logs.csv") and os.path.exists("feedback_logs.csv"):
-                df_system = pd.read_csv("clinic_logs.csv")
-                df_feedback = pd.read_csv("feedback_logs.csv")
-                
-                # Clean headers just in case
-                df_system.columns = df_system.columns.str.strip()
-                df_feedback.columns = df_feedback.columns.str.strip()
-                
-                try:
-                    # LEFT JOIN System Logs with Feedback on Session ID
+            # 1. ATTEMPT TO LOAD DATA
+            try:
+                if os.path.exists("clinic_logs.csv") and os.path.exists("feedback_logs.csv"):
+                    # Use on_bad_lines='skip' to ignore old, broken rows automatically
+                    df_system = pd.read_csv("clinic_logs.csv", on_bad_lines='skip')
+                    df_feedback = pd.read_csv("feedback_logs.csv", on_bad_lines='skip')
+                    
+                    # Clean headers
+                    df_system.columns = df_system.columns.str.strip()
+                    df_feedback.columns = df_feedback.columns.str.strip()
+                    
+                    # Merge Logic
                     df_master = pd.merge(df_system, df_feedback[['Session ID', 'Rating', 'Comment']], on='Session ID', how='left')
                     
                     st.markdown("### 🏆 Master Performance Table")
-                    st.caption("Combined View: Input (File) + Output (Score) + Feedback (Rating)")
                     st.dataframe(df_master)
                     
-                    # Highlight Conflicts
+                    # Conflict Detector
                     st.markdown("### 🚨 Conflict Detector")
-                    conflicts = df_master[(df_master['Logic Score'] > 80) & (df_master['Rating'] == 'Negative')]
-                    if not conflicts.empty:
-                        st.error(f"Found {len(conflicts)} cases where AI was confident but User was unhappy!")
-                        st.dataframe(conflicts)
-                    else:
-                        st.info("No obvious conflicts found.")
-                        
-                except Exception as e:
-                    st.error(f"Merge Error: {e}. Check CSV headers.")
+                    if 'Logic Score' in df_master.columns and 'Rating' in df_master.columns:
+                        conflicts = df_master[(df_master['Logic Score'] > 80) & (df_master['Rating'] == 'Negative')]
+                        if not conflicts.empty:
+                            st.error(f"Found {len(conflicts)} confident-but-failed cases!")
+                            st.dataframe(conflicts)
+                        else:
+                            st.info("No obvious conflicts found.")
+                
+                elif os.path.exists("clinic_logs.csv"):
+                    # Fallback if only system logs exist
+                    st.dataframe(pd.read_csv("clinic_logs.csv", on_bad_lines='skip'))
             
-            elif os.path.exists("clinic_logs.csv"):
-                st.dataframe(pd.read_csv("clinic_logs.csv"))
+            except Exception as e:
+                st.error(f"⚠️ DATABASE CORRUPTED: {e}")
+                st.warning("This usually happens when old data formats mix with new ones.")
             
-            if st.button("Clear ALL Data"):
+            st.divider()
+            
+            # 2. HARD RESET BUTTON (Fixes the error by clearing old files)
+            st.markdown("### 🛠️ Maintenance")
+            if st.button("🔴 HARD RESET (Clear All Data & Fix Crash)", type="primary"):
                 if os.path.exists("clinic_logs.csv"): os.remove("clinic_logs.csv")
                 if os.path.exists("feedback_logs.csv"): os.remove("feedback_logs.csv")
-                for f in os.listdir("user_uploads"):
-                    file_path = os.path.join("user_uploads", f)
-                    if os.path.isfile(file_path): os.remove(file_path)
+                # Clear uploads folder
+                if os.path.exists("user_uploads"):
+                    for f in os.listdir("user_uploads"):
+                        file_path = os.path.join("user_uploads", f)
+                        if os.path.isfile(file_path): os.remove(file_path)
+                
+                st.success("System wiped clean. Please reload the page.")
                 st.rerun()
 
         elif admin_pass:
