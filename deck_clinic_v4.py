@@ -215,7 +215,7 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
         {knowledge_context}
         
         ### DRAFT TEXT:
-        {draft_text[:50000]} 
+        {draft_text[:500000]} 
         
         ### VISUAL INPUT:
         I have provided images of the slides. Please analyze them alongside the text.
