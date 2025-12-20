@@ -106,66 +106,66 @@ with st.sidebar:
 
     st.divider()
     
-    # 🔐 MASTER ADMIN PANEL (ROBUST VERSION)
+    # 🔐 MASTER ADMIN PANEL (With "Empty State" Fix)
     with st.expander("🔐 ADMIN PANEL (MASTER VIEW)"):
         admin_pass = st.text_input("Enter Admin Key", type="password")
         if admin_pass == "gemini2025": 
             st.success("ACCESS GRANTED")
             
-            # 1. ATTEMPT TO LOAD DATA
-            try:
-                if os.path.exists("clinic_logs.csv") and os.path.exists("feedback_logs.csv"):
-                    # Use on_bad_lines='skip' to ignore old, broken rows automatically
+            # Check file status
+            has_logs = os.path.exists("clinic_logs.csv")
+            has_feedback = os.path.exists("feedback_logs.csv")
+            
+            # 1. SHOW DATA (If exists)
+            if has_logs:
+                try:
+                    # Load System Logs
                     df_system = pd.read_csv("clinic_logs.csv", on_bad_lines='skip')
-                    df_feedback = pd.read_csv("feedback_logs.csv", on_bad_lines='skip')
+                    df_system.columns = df_system.columns.str.strip() # Clean headers
                     
-                    # Clean headers
-                    df_system.columns = df_system.columns.str.strip()
-                    df_feedback.columns = df_feedback.columns.str.strip()
-                    
-                    # Merge Logic
-                    df_master = pd.merge(df_system, df_feedback[['Session ID', 'Rating', 'Comment']], on='Session ID', how='left')
-                    
-                    st.markdown("### 🏆 Master Performance Table")
-                    st.dataframe(df_master)
-                    
-                    # Conflict Detector
-                    st.markdown("### 🚨 Conflict Detector")
-                    if 'Logic Score' in df_master.columns and 'Rating' in df_master.columns:
-                        conflicts = df_master[(df_master['Logic Score'] > 80) & (df_master['Rating'] == 'Negative')]
-                        if not conflicts.empty:
-                            st.error(f"Found {len(conflicts)} confident-but-failed cases!")
-                            st.dataframe(conflicts)
-                        else:
-                            st.info("No obvious conflicts found.")
-                
-                elif os.path.exists("clinic_logs.csv"):
-                    # Fallback if only system logs exist
-                    st.dataframe(pd.read_csv("clinic_logs.csv", on_bad_lines='skip'))
+                    if has_feedback:
+                        # Load & Merge Feedback
+                        df_feedback = pd.read_csv("feedback_logs.csv", on_bad_lines='skip')
+                        df_feedback.columns = df_feedback.columns.str.strip()
+                        
+                        # Merge
+                        df_master = pd.merge(df_system, df_feedback[['Session ID', 'Rating', 'Comment']], on='Session ID', how='left')
+                        st.markdown("### 🏆 Master Performance Table")
+                        st.dataframe(df_master)
+                        
+                        # Conflict Check
+                        if 'Logic Score' in df_master.columns and 'Rating' in df_master.columns:
+                            conflicts = df_master[(df_master['Logic Score'] > 80) & (df_master['Rating'] == 'Negative')]
+                            if not conflicts.empty:
+                                st.error(f"Found {len(conflicts)} conflicts!")
+                                st.dataframe(conflicts)
+                    else:
+                        # System Logs Only
+                        st.markdown("### 🚦 System Logs (No Feedback Yet)")
+                        st.dataframe(df_system)
+
+                except Exception as e:
+                    st.error(f"⚠️ Error reading logs: {e}")
             
-            except Exception as e:
-                st.error(f"⚠️ DATABASE CORRUPTED: {e}")
-                st.warning("This usually happens when old data formats mix with new ones.")
-            
+            else:
+                # 2. EMPTY STATE (If no files)
+                st.info("📭 Database is clean. Upload and run a deck to generate new logs.")
+
             st.divider()
             
-            # 2. HARD RESET BUTTON (Fixes the error by clearing old files)
+            # 3. MAINTENANCE
             st.markdown("### 🛠️ Maintenance")
-            if st.button("🔴 HARD RESET (Clear All Data & Fix Crash)", type="primary"):
+            if st.button("🔴 HARD RESET (Clear All Data)", type="primary"):
                 if os.path.exists("clinic_logs.csv"): os.remove("clinic_logs.csv")
                 if os.path.exists("feedback_logs.csv"): os.remove("feedback_logs.csv")
-                # Clear uploads folder
                 if os.path.exists("user_uploads"):
                     for f in os.listdir("user_uploads"):
-                        file_path = os.path.join("user_uploads", f)
-                        if os.path.isfile(file_path): os.remove(file_path)
-                
-                st.success("System wiped clean. Please reload the page.")
+                        os.remove(os.path.join("user_uploads", f))
                 st.rerun()
 
         elif admin_pass:
             st.error("Access Denied")
-
+            
 # --- 6. MAIN INTERFACE ---
 st.title(" 🎠DECK Playground")
 st.caption(f"PROTOCOL: {doc_type} | CORE: gemini-flash-latest") 
