@@ -86,7 +86,7 @@ PERSIST_DIRECTORY = "deck_memory_db"
 # --- 5. SIDEBAR ---
 with st.sidebar:
     st.title("🎛️ SETTINGS")
-    doc_type = st.selectbox("DIAGNOSTIC PROTOCOL", ["Strategy Deck (McKinsey/Amazon)", "Product Spec (Technical)", "Exec Update (Brief)"])
+    doc_type = st.selectbox("DIAGNOSTIC PROTOCOL", ["Strategy Deck (McKinsey/Amazon)", "Product Spec (Technical)"])
     st.divider()
     
     st.caption("📂 KNOWLEDGE BASE")
