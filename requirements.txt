@@ -8,5 +8,4 @@ chromadb
 pypdf
 pandas
 langchain-text-splitters
-langchain-text-splitters
-langchain-text-splitters
+pdf2image
