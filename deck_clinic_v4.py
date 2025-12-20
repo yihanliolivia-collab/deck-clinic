@@ -204,11 +204,9 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
         # D. Prompt Construction (YOUR ORIGINAL PROMPT + VISION NOTE)
         base_instruction = ""
         if "Strategy" in doc_type:
-            base_instruction = "ROLE: VP of Strategy. FRAMEWORK: Amazon Clarity, McKinsey Structure."
+            base_instruction = "ROLE: Head of Product Manager in Tech Company. FRAMEWORK: Amazon Clarity, McKinsey Structure.BLUF, Extreme Brevity."
         elif "Product" in doc_type:
-            base_instruction = "ROLE: Senior Technical PM. FRAMEWORK: Feasibility checks, Spec strictness."
-        else:
-            base_instruction = "ROLE: CEO. FRAMEWORK: BLUF, Extreme Brevity."
+            base_instruction = "ROLE: Head of Technical PM. FRAMEWORK: Feasibility checks, Spec strictness."
 
         prompt = f"""
         {base_instruction}
