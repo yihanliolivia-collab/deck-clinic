@@ -39,7 +39,7 @@ def log_interaction(session_id, filename, doc_type, scores, exec_summary):
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
-    page_title="Deck Clinic: Data Lake Edition (Vision)",
+    page_title="Deck Clinic)",
     page_icon="👁️",
     layout="wide"
 )
@@ -140,7 +140,7 @@ with st.sidebar:
                 st.rerun()
 
 # --- 6. MAIN INTERFACE ---
-st.title(" 🎠DECK Playground (Vision)")
+st.title(" 🎠DECK Clinic")
 st.caption(f"Built by Olivia Li | PROTOCOL: {doc_type} | CORE: gemini-flash-latest | EMBEDDING: embedding-001 | Langchain") 
 
 col1, col2 = st.columns([2, 3]) 
