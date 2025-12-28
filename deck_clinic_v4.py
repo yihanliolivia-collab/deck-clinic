@@ -326,22 +326,119 @@ st.markdown("""
         background: linear-gradient(180deg, #1f2937 0%, #111827 100%);
     }
     
-    [data-testid="stSidebar"] * {
+    [data-testid="stSidebar"] h1, 
+    [data-testid="stSidebar"] h2, 
+    [data-testid="stSidebar"] h3,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] .stMarkdown {
         color: #e5e7eb !important;
     }
     
-    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+    /* Sidebar Selectbox */
+    [data-testid="stSidebar"] .stSelectbox > div > div {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
         color: white !important;
     }
     
+    [data-testid="stSidebar"] .stSelectbox input {
+        color: white !important;
+    }
+    
+    [data-testid="stSidebar"] .stSelectbox svg {
+        fill: white !important;
+    }
+    
+    /* Sidebar File Uploader */
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 2px dashed rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] section {
+        background: transparent !important;
+        border: none !important;
+    }
+    
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] label,
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] small,
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] button {
+        color: #e5e7eb !important;
+    }
+    
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] button {
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        background: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] button:hover {
+        background: rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    /* Sidebar Text Input */
+    [data-testid="stSidebar"] input[type="text"],
+    [data-testid="stSidebar"] input[type="password"] {
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        color: white !important;
+    }
+    
+    [data-testid="stSidebar"] input::placeholder {
+        color: rgba(255, 255, 255, 0.5) !important;
+    }
+    
+    /* Sidebar Buttons */
     [data-testid="stSidebar"] .stButton > button {
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: white;
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        color: white !important;
     }
     
     [data-testid="stSidebar"] .stButton > button:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    /* Sidebar Expander */
+    [data-testid="stSidebar"] .streamlit-expanderHeader {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        color: white !important;
+    }
+    
+    [data-testid="stSidebar"] .streamlit-expanderHeader:hover {
+        background: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    [data-testid="stSidebar"] details[open] > .streamlit-expanderHeader {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    /* Sidebar Caption */
+    [data-testid="stSidebar"] .stCaption {
+        color: rgba(255, 255, 255, 0.7) !important;
+    }
+    
+    /* Sidebar Metrics */
+    [data-testid="stSidebar"] [data-testid="stMetric"] {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    [data-testid="stSidebar"] [data-testid="stMetricLabel"],
+    [data-testid="stSidebar"] [data-testid="stMetricValue"] {
+        color: white !important;
+    }
+    
+    /* Sidebar JSON */
+    [data-testid="stSidebar"] [data-testid="stJson"] {
+        background: rgba(0, 0, 0, 0.3) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+    
+    /* Sidebar Divider */
+    [data-testid="stSidebar"] hr {
+        border-color: rgba(255, 255, 255, 0.2) !important;
     }
     
     /* DIVIDER */
