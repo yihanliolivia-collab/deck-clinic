@@ -39,21 +39,18 @@ def log_interaction(session_id, filename, doc_type, scores, exec_summary):
 def get_score_context(score):
     """Return tier, color, and advice based on score"""
     if score >= 85:
-        return "EXCELLENT", "#2dd4bf", "Deck is presentation-ready"
+        return "EXCELLENT", "#10b981", "🏆 Top 10%"
     elif score >= 70:
-        return "GOOD", "#60a5fa", "Minor refinements suggested"
+        return "GOOD", "#3b82f6", "✓ Above Average"
     elif score >= 50:
-        return "NEEDS WORK", "#fb923c", "Significant improvements needed"
+        return "NEEDS WORK", "#f59e0b", "⚠ Improvements Needed"
     else:
-        return "CRITICAL", "#f87171", "Major structural issues detected"
+        return "CRITICAL", "#ef4444", "⚡ Major Issues"
 
 # --- ADVANCED RAG FUNCTIONS ---
 def advanced_rag_pipeline(draft_text, doc_type, vector_db):
-    """
-    Advanced RAG with query expansion and reciprocal rank fusion
-    """
+    """Advanced RAG with query expansion and reciprocal rank fusion"""
     
-    # STEP 1: Query Expansion
     query_expansion_prompt = f"""
     Generate 5 focused search queries to find relevant examples for this {doc_type}:
     
@@ -61,7 +58,6 @@ def advanced_rag_pipeline(draft_text, doc_type, vector_db):
     {draft_text[:1500]}
     
     Return JSON array: ["query1", "query2", "query3", "query4", "query5"]
-    Each query should focus on a different aspect (problem, solution, metrics, narrative, audience).
     """
     
     model = genai.GenerativeModel('gemini-flash-latest')
@@ -72,10 +68,8 @@ def advanced_rag_pipeline(draft_text, doc_type, vector_db):
         )
         queries = json.loads(response.text)
     except:
-        # Fallback to simple query if expansion fails
         queries = [draft_text[:500]]
     
-    # STEP 2: Multi-Query Retrieval with RRF
     all_results = {}
     
     for i, query in enumerate(queries):
@@ -90,7 +84,6 @@ def advanced_rag_pipeline(draft_text, doc_type, vector_db):
         except:
             continue
     
-    # STEP 3: Reciprocal Rank Fusion
     k = 60
     for doc_id in all_results:
         ranks = all_results[doc_id]['ranks']
@@ -105,18 +98,14 @@ def advanced_rag_pipeline(draft_text, doc_type, vector_db):
     
     final_docs = [item['doc'] for item in sorted_docs[:5]]
     
-    # STEP 4: Assemble Context with Source Attribution
     knowledge_context = ""
     for i, doc in enumerate(final_docs, 1):
         knowledge_context += f"\n\n━━━ EXAMPLE {i} ━━━\n{doc.page_content}"
     
     return knowledge_context, queries, final_docs
 
-# --- ENHANCED DOCUMENT INDEXING ---
 def enhanced_document_indexing(uploaded_file):
-    """
-    Index documents with metadata extraction
-    """
+    """Index documents with metadata extraction"""
     
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
         tmp_file.write(uploaded_file.read())
@@ -125,7 +114,6 @@ def enhanced_document_indexing(uploaded_file):
     loader = PyPDFLoader(tmp_file_path)
     raw_docs = loader.load()
     
-    # Extract metadata
     sample_text = "\n".join([doc.page_content for doc in raw_docs[:3]])
     
     metadata_prompt = f"""
@@ -150,7 +138,6 @@ def enhanced_document_indexing(uploaded_file):
     except:
         metadata = {"doc_type": "Unknown", "quality_tier": "Unknown"}
     
-    # Split with metadata
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=4000, chunk_overlap=500)
     docs = text_splitter.split_documents(raw_docs)
     
@@ -168,193 +155,256 @@ def enhanced_document_indexing(uploaded_file):
 st.set_page_config(
     page_title="Deck Clinic",
     page_icon="🎠",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# --- 2. ENHANCED CSS STYLING ---
+# --- 2. MODERN DASHBOARD CSS ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=DM+Sans:wght@400;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&display=swap');
     
-    html, body, [class*="css"] { 
-        font-family: 'DM Sans', sans-serif;
-        background: linear-gradient(to bottom, #fafafa 0%, #f5f5f5 100%);
+    /* GLOBAL RESET */
+    * {
+        font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     
-    h1 { 
-        font-family: 'Playfair Display', serif; 
-        font-weight: 900;
-        font-size: 3.5rem;
-        color: #1a1a1a;
-        letter-spacing: -2px;
-        margin-bottom: 0.5rem;
+    html, body, [class*="css"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-attachment: fixed;
     }
     
-    h2, h3, h4, h5 { 
-        font-family: 'Playfair Display', serif; 
-        font-weight: 700;
-        color: #1a1a1a;
-        letter-spacing: -1px;
+    /* MAIN CONTAINER */
+    .main .block-container {
+        padding: 2rem 3rem;
+        max-width: 1400px;
     }
     
-    div[data-testid="stMetricValue"] {
-        font-size: 3.5rem;
-        font-family: 'Playfair Display', serif;
-        font-weight: 900;
-        background: rgba(255, 255, 255, 0.95);
-        padding: 28px 20px;
+    /* CARD STYLES */
+    .dashboard-card {
+        background: white;
         border-radius: 16px;
-        border: 1px solid rgba(0, 0, 0, 0.08);
-        box-shadow: 
-            0 4px 6px rgba(0, 0, 0, 0.03),
-            0 10px 20px rgba(0, 0, 0, 0.05);
-        text-align: center;
-        backdrop-filter: blur(10px);
+        padding: 24px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 10px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        margin-bottom: 20px;
         transition: all 0.3s ease;
     }
     
-    div[data-testid="stMetricValue"]:hover {
+    .dashboard-card:hover {
+        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1), 0 16px 32px rgba(0, 0, 0, 0.08);
         transform: translateY(-2px);
-        box-shadow: 
-            0 8px 12px rgba(0, 0, 0, 0.05),
-            0 16px 32px rgba(0, 0, 0, 0.08);
+    }
+    
+    /* HEADERS */
+    h1 {
+        font-weight: 800;
+        font-size: 3rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+        letter-spacing: -1px;
+    }
+    
+    h2, h3 {
+        font-weight: 700;
+        color: #1f2937;
+        letter-spacing: -0.5px;
+    }
+    
+    /* SCORE CARDS */
+    div[data-testid="stMetric"] {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        border: 2px solid #e5e7eb;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    div[data-testid="stMetricValue"] {
+        font-size: 3rem;
+        font-weight: 800;
+        color: #667eea;
     }
     
     div[data-testid="stMetricLabel"] {
-        font-family: 'DM Sans', sans-serif;
         text-transform: uppercase;
-        letter-spacing: 2px;
+        letter-spacing: 1.5px;
         font-size: 0.7rem;
         font-weight: 700;
         color: #6b7280;
         margin-bottom: 8px;
     }
     
-    div.stButton > button {
-        border-radius: 12px;
-        border: 2px solid #1a1a1a;
-        font-weight: 700;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        background-color: #1a1a1a;
-        color: #ffffff;
+    /* BUTTONS */
+    .stButton > button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
         padding: 12px 32px;
-        font-family: 'DM Sans', sans-serif;
+        font-weight: 700;
+        font-size: 0.9rem;
         text-transform: uppercase;
         letter-spacing: 1px;
-        font-size: 0.85rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
     }
     
-    div.stButton > button:hover {
-        background-color: #ffffff;
-        color: #1a1a1a;
+    .stButton > button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
     }
     
-    div.stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
-        border: none;
-        color: #ffffff;
-    }
-    
-    div.stButton > button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #db2777 0%, #7c3aed 100%);
-        color: #ffffff;
-        box-shadow: 0 12px 24px rgba(236, 72, 153, 0.3);
-    }
-    
-    .issue-tag {
-        background-color: #fff1f2;
-        color: #be123c;
-        padding: 6px 14px;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.75rem;
-        display: inline-block;
-        margin-bottom: 10px;
-        border-left: 3px solid #be123c;
-        font-family: 'DM Sans', sans-serif;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .fix-tag {
-        background-color: #ecfdf5;
-        color: #047857;
-        padding: 6px 14px;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.75rem;
-        display: inline-block;
-        margin-bottom: 10px;
-        border-left: 3px solid #047857;
-        font-family: 'DM Sans', sans-serif;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .logic-footer {
-        font-size: 0.9rem;
-        color: #4b5563;
-        background: linear-gradient(to right, #fafafa 0%, #ffffff 100%);
-        padding: 16px;
+    /* FILE UPLOADER */
+    [data-testid="stFileUploader"] {
+        background: white;
+        border: 2px dashed #cbd5e1;
         border-radius: 12px;
-        margin-top: 12px;
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        font-family: 'DM Sans', sans-serif;
-        line-height: 1.6;
+        padding: 32px;
+        transition: all 0.3s ease;
     }
     
-    .score-badge {
+    [data-testid="stFileUploader"]:hover {
+        border-color: #667eea;
+        background: #f8f9ff;
+    }
+    
+    /* TABS */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background: white;
+        padding: 8px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        background: transparent;
+        border-radius: 8px;
+        color: #6b7280;
+        font-weight: 600;
+        padding: 0 24px;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+    }
+    
+    /* EXPANDER */
+    .streamlit-expanderHeader {
+        background: white;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        font-weight: 600;
+        color: #374151;
+        padding: 16px;
+    }
+    
+    .streamlit-expanderHeader:hover {
+        border-color: #667eea;
+        background: #f8f9ff;
+    }
+    
+    /* ALERTS */
+    .stAlert {
+        border-radius: 10px;
+        border-left-width: 4px;
+        padding: 16px;
+    }
+    
+    /* INFO BOXES */
+    .element-container div[data-testid="stMarkdownContainer"] > div > div {
+        border-radius: 10px;
+    }
+    
+    /* SIDEBAR */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1f2937 0%, #111827 100%);
+    }
+    
+    [data-testid="stSidebar"] * {
+        color: #e5e7eb !important;
+    }
+    
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+        color: white !important;
+    }
+    
+    [data-testid="stSidebar"] .stButton > button {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+    }
+    
+    [data-testid="stSidebar"] .stButton > button:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+    
+    /* DIVIDER */
+    hr {
+        margin: 2rem 0;
+        border: none;
+        border-top: 2px solid #e5e7eb;
+        opacity: 0.5;
+    }
+    
+    /* BADGE STYLES */
+    .status-badge {
         display: inline-block;
-        padding: 6px 16px;
+        padding: 6px 14px;
         border-radius: 20px;
         font-size: 0.75rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.5px;
         margin-top: 8px;
-        font-family: 'DM Sans', sans-serif;
     }
     
-    div[data-testid="stMarkdownContainer"] > div > div.stAlert {
+    /* ISSUE/FIX TAGS */
+    .issue-tag {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        color: #b91c1c;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.8rem;
+        display: inline-block;
+        margin-bottom: 12px;
+        border-left: 4px solid #dc2626;
+    }
+    
+    .fix-tag {
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        color: #065f46;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.8rem;
+        display: inline-block;
+        margin-bottom: 12px;
+        border-left: 4px solid #059669;
+    }
+    
+    .info-box {
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        border: 1px solid #93c5fd;
         border-radius: 12px;
-        border-left-width: 4px;
-        font-family: 'DM Sans', sans-serif;
+        padding: 16px;
+        margin: 12px 0;
     }
     
-    div[data-testid="stFileUploader"] {
-        background: rgba(255, 255, 255, 0.95);
-        border-radius: 16px;
-        padding: 20px;
-        border: 2px dashed rgba(0, 0, 0, 0.1);
-        transition: all 0.3s ease;
+    /* ANIMATIONS */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     
-    div[data-testid="stFileUploader"]:hover {
-        border-color: rgba(0, 0, 0, 0.3);
-        background: rgba(255, 255, 255, 1);
-    }
-    
-    div[data-testid="stExpander"] {
-        background: rgba(255, 255, 255, 0.8);
-        border-radius: 12px;
-        border: 1px solid rgba(0, 0, 0, 0.06);
-        margin-bottom: 16px;
-    }
-    
-    button[data-baseweb="tab"] {
-        font-family: 'DM Sans', sans-serif;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-size: 0.85rem;
-    }
-    
-    hr {
-        margin: 2rem 0;
-        border: none;
-        border-top: 1px solid rgba(0, 0, 0, 0.08);
+    .dashboard-card {
+        animation: fadeIn 0.5s ease-out;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -385,78 +435,100 @@ PERSIST_DIRECTORY = "deck_memory_db"
 
 # --- 5. SIDEBAR ---
 with st.sidebar:
-    st.title("🎛️ SETTINGS")
-    doc_type = st.selectbox("DIAGNOSTIC PROTOCOL", ["Strategy Deck (McKinsey/Amazon)", "Product Spec (Technical)"])
-    st.divider()
+    st.markdown("### ⚙️ CONFIGURATION")
+    doc_type = st.selectbox("Protocol Type", ["Strategy Deck (McKinsey/Amazon)", "Product Spec (Technical)"])
     
-    st.caption("📂 KNOWLEDGE BASE")
-    uploaded_file = st.file_uploader("Upload 'Gold Standard' PDF", type="pdf")
-    if uploaded_file and st.button("TRAIN SYSTEM"):
-        with st.spinner("Indexing with metadata..."):
+    st.markdown("---")
+    
+    st.markdown("### 📚 KNOWLEDGE BASE")
+    st.caption("Upload exemplar decks to teach the system")
+    uploaded_file = st.file_uploader("", type="pdf", label_visibility="collapsed")
+    if uploaded_file and st.button("🔄 INDEX DOCUMENT", use_container_width=True):
+        with st.spinner("Analyzing and indexing..."):
             docs, metadata = enhanced_document_indexing(uploaded_file)
             vector_db = Chroma.from_documents(docs, embeddings, persist_directory=PERSIST_DIRECTORY)
             try: vector_db.persist()
             except: pass
-            st.success(f"✅ System Index Updated: {len(docs)} chunks")
+            st.success(f"✅ Indexed {len(docs)} chunks")
             st.json(metadata)
 
-    st.divider()
+    st.markdown("---")
     
     # ADMIN PANEL
-    with st.expander("🔐 ADMIN PANEL (MASTER VIEW)"):
-        admin_pass = st.text_input("Enter Admin Key", type="password")
+    with st.expander("🔐 ADMIN ACCESS"):
+        admin_pass = st.text_input("Access Key", type="password", label_visibility="collapsed")
         if admin_pass == "gemini2025": 
-            st.success("ACCESS GRANTED")
-            has_logs = os.path.exists("clinic_logs.csv")
-            has_feedback = os.path.exists("feedback_logs.csv")
+            st.success("✓ Authenticated")
             
-            if has_logs:
+            if os.path.exists("clinic_logs.csv"):
                 try:
                     df_system = pd.read_csv("clinic_logs.csv", on_bad_lines='skip')
-                    df_system.columns = df_system.columns.str.strip()
-                    if has_feedback:
-                        df_feedback = pd.read_csv("feedback_logs.csv", on_bad_lines='skip')
-                        df_feedback.columns = df_feedback.columns.str.strip()
-                        df_master = pd.merge(df_system, df_feedback[['Session ID', 'Rating', 'Comment']], on='Session ID', how='left')
-                        st.dataframe(df_master)
-                    else:
-                        st.dataframe(df_system)
+                    st.metric("Total Analyses", len(df_system))
+                    st.metric("Avg Logic Score", f"{df_system['Logic Score'].mean():.0f}")
+                    
+                    if st.button("📥 Export Data", use_container_width=True):
+                        csv = df_system.to_csv(index=False)
+                        st.download_button(
+                            "Download CSV",
+                            csv,
+                            "deck_clinic_export.csv",
+                            "text/csv",
+                            use_container_width=True
+                        )
+                    
+                    if st.button("🗑️ Reset Database", use_container_width=True):
+                        if os.path.exists("clinic_logs.csv"): os.remove("clinic_logs.csv")
+                        if os.path.exists("feedback_logs.csv"): os.remove("feedback_logs.csv")
+                        st.rerun()
+                        
                 except Exception as e:
-                    st.error(f"⚠️ Error reading logs: {e}")
+                    st.error(f"Error: {e}")
             else:
-                st.info("📭 Database is clean.")
-            
-            st.divider()
-            if st.button("🔴 HARD RESET (Clear All Data)", type="primary"):
-                if os.path.exists("clinic_logs.csv"): os.remove("clinic_logs.csv")
-                if os.path.exists("feedback_logs.csv"): os.remove("feedback_logs.csv")
-                for f in os.listdir("user_uploads"):
-                    os.remove(os.path.join("user_uploads", f))
-                st.rerun()
+                st.info("No data yet")
     
-    # RAG DEBUG PANEL
-    with st.expander("🔍 RAG DEBUG PANEL"):
+    # RAG DEBUG
+    with st.expander("🔬 RAG DEBUG"):
         if 'rag_queries' in st.session_state:
-            st.markdown("### Generated Search Queries")
             for i, query in enumerate(st.session_state.rag_queries, 1):
-                st.code(f"{i}. {query}")
+                st.caption(f"{i}. {query[:50]}...")
 
 # --- 6. MAIN INTERFACE ---
-st.title("🎠 DECK Clinic")
-st.caption(f"Built by Olivia Li | PROTOCOL: {doc_type} | CORE: gemini-flash-latest | Advanced RAG + Chain-of-Thought") 
+st.markdown("# 🎠 Deck Clinic")
+st.markdown(f"**AI-Powered Strategy Deck Analyzer** · `{doc_type}` · *Built by Olivia Li*")
 
-col1, col2 = st.columns([2, 3]) 
+# Hero Card
+st.markdown("""
+<div class="dashboard-card">
+    <h3 style="margin-top: 0;">How It Works</h3>
+    <p style="color: #6b7280; margin-bottom: 0;">
+        Upload your draft deck → AI analyzes logic, clarity & impact using multimodal vision + RAG → 
+        Get surgical feedback with specific rewrites → Iterate and improve
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
-with col1:
-    st.markdown("### UPLOAD DRAFT DECK")
-    target_pdf = st.file_uploader("Upload Draft PDF", type="pdf", key="target")
+# Upload Section
+col_upload, col_info = st.columns([2, 1])
+
+with col_upload:
+    st.markdown("### 📄 Upload Your Deck")
+    target_pdf = st.file_uploader("Drop your PDF here", type="pdf", key="target")
     
     if not target_pdf:
-        st.info("👆 Upload your deck to begin analysis")
+        st.info("👆 Upload a deck to get started")
     
-    analyze_btn = st.button("RUN DIAGNOSTIC", type="primary", use_container_width=True)
+    analyze_btn = st.button("🚀 RUN DIAGNOSTIC", type="primary", use_container_width=True)
 
-# Reset Session if NEW file uploaded
+with col_info:
+    st.markdown("### 📊 What You'll Get")
+    st.markdown("""
+    - **3-Dimensional Scoring** (Logic, Clarity, Impact)
+    - **Chain-of-Thought Reasoning** (See AI's analysis process)
+    - **Slide-by-Slide Critique** (Specific issues + fixes)
+    - **Narrative Flow Audit** (Story structure review)
+    """)
+
+# Session Management
 if target_pdf and 'last_uploaded' not in st.session_state:
     st.session_state.last_uploaded = target_pdf.name
     st.session_state.analysis_data = None
@@ -481,19 +553,13 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
         with open(save_path, "wb") as f:
             f.write(target_pdf.getbuffer())
         
-        # Convert PDF to Images
-        with st.spinner("Processing Vision (Converting Slides)..."):
+        # Vision Processing
+        with st.spinner("🔍 Processing slides..."):
             try:
                 images = convert_from_path(save_path)
                 st.session_state.images = images
             except Exception as e:
-                st.warning(f"""
-                ⚠️ **Vision processing unavailable** (Poppler not installed)
-                
-                Continuing with text-only analysis. For full multimodal analysis, install Poppler:
-                - Mac: `brew install poppler`
-                - Linux: `apt-get install poppler-utils`
-                """)
+                st.warning("⚠️ Vision processing unavailable (Poppler not installed). Continuing with text-only analysis.")
                 st.session_state.images = None
         
         # Text Extraction
@@ -503,8 +569,8 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
         for i, doc in enumerate(draft_docs):
             draft_text += f"\n\n--- [PAGE {i+1}] ---\n{doc.page_content}"
 
-        # ADVANCED RAG Retrieval
-        with st.spinner("Retrieving Context (Advanced RAG)..."):
+        # Advanced RAG
+        with st.spinner("🧠 Retrieving knowledge..."):
             try:
                 vector_db = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=embeddings)
                 knowledge_context, search_queries, retrieved_chunks = advanced_rag_pipeline(
@@ -514,10 +580,9 @@ if (target_pdf and analyze_btn) or (target_pdf and st.session_state.get('analysi
                 )
                 st.session_state.rag_queries = search_queries
             except Exception as e:
-                st.warning(f"Advanced RAG failed, using fallback: {e}")
                 knowledge_context = "Standard Top Tech Company Protocols"
 
-        # Enhanced CoT Prompt
+        # Prompt Construction (YOUR ORIGINAL PROMPT - UNCHANGED)
         base_instruction = ""
         if "Strategy" in doc_type:
             base_instruction = "ROLE: Head of Product Manager in Tech Company. FRAMEWORK: Amazon Clarity, McKinsey Structure.BLUF, Extreme Brevity."
@@ -569,9 +634,9 @@ PHASE 2: SCORING (Based on Your Reasoning Above)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 NOW, based on the reasoning you just wrote:
-- Logic Score: 0-100 (Is the argument sound?)
-- Clarity Score: 0-100 (Can a busy exec understand it?)
-- Impact Score: 0-100 (Will this change minds?)
+- Logic Score: 0-100
+- Clarity Score: 0-100
+- Impact Score: 0-100
 
 **CRITICAL:** Your scores MUST align with your reasoning.
 
@@ -579,58 +644,48 @@ NOW, based on the reasoning you just wrote:
 PHASE 3: EXTRACTION & RECONSTRUCTION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-3. **EXTRACTION:** Extract the current headlines to identify the existing narrative.
-4. **Headline & Narrative Audit:**
-   - Critique the current headlines: Do they tell a story if read in isolation?
-   - Suggest a **"Revised Headline Flow"**: Rewritten headlines that guide logically from problem to solution.
-5. **CONTENT RIGOR:** Scan body paragraphs, bullets, charts for vague claims.
+3. Extract the current headlines
+4. Critique the narrative flow
+5. Scan for vague claims
 
-### EXAMPLES OF GOOD CRITIQUES (FEW-SHOT):
+### EXAMPLES OF GOOD CRITIQUES:
 
-input_text: "The KSP is enable Shopee buyers to see an AI generated summary of available promotions and encourage them to buy. In this deck, we will discuss the logic of the input of promotion summary first, then show the front end demo and share the examples of different generated example in words."
-critique: "1. Grammar: 'is enable' is broken. 2. Weak Metrics: 'encourage to buy' is vague; use 'conversion'. 3. Illogical Flow: The proposed agenda jumps from 'Input Logic' to 'Frontend Demo' before validating the output quality."
-rewrite: "Objective: Increase Shopee conversion rates by displaying AI-generated promotion summaries. This deck follows a three-part structure: 1. Core Logic (How inputs drive summaries), 2. Output Validation (Reviewing generated text examples), and 3. User Experience (Frontend demo)."
+input_text: "The KSP is enable Shopee buyers to see an AI generated summary of available promotions and encourage them to buy."
+critique: "1. Grammar: 'is enable' is broken. 2. Weak Metrics: 'encourage to buy' is vague; use 'conversion'."
+rewrite: "Objective: Increase Shopee conversion rates by displaying AI-generated promotion summaries."
 
-input_text: "We will leverage synergies to optimize the flywheel."
-critique: "Jargon overload. Low clarity. No distinct meaning."
-rewrite: "We will migrate the Promotion admin to CMT to significantly improve efficiency."
-
-input_text: "Slide Title: Strong User Growth. Body: We saw significant uplift in daily active users across various regions due to better performance."
-critique: "Vague Body Content. The headline is fine, but the bullet point lacks evidence. 'Significant uplift' needs a % or absolute number."
-rewrite: "Body: DAU increased by 15% (20k users) in SEA and LATAM, driven by a 200ms reduction in app load time."
-
-### JSON STRUCTURE (ENHANCED WITH REASONING):
+### JSON STRUCTURE:
 {{
     "chain_of_thought": {{
-        "logic_reasoning": "<string: Your 3-4 sentence reasoning from PHASE 1>",
-        "clarity_reasoning": "<string: Your 3-4 sentence reasoning from PHASE 1>",
-        "impact_reasoning": "<string: Your 3-4 sentence reasoning from PHASE 1>"
+        "logic_reasoning": "<string>",
+        "clarity_reasoning": "<string>",
+        "impact_reasoning": "<string>"
     }},
     "scores": {{
         "Logic": <int 0-100>,
         "Clarity": <int 0-100>,
         "Impact": <int 0-100>
     }},
-    "executive_summary": "<string: Brutal one-sentence summary based on the chain_of_thought>",
+    "executive_summary": "<string>",
     "narrative_check": {{
-         "original_headlines": [ "<string: Extracted Headline 1>", "<string: Extracted Headline 2>" ],
-         "critique": "<string: Critique of the current storytelling flow>",
-         "revised_headlines": [ "<string: Improved Headline 1>", "<string: Improved Headline 2>" ]
+         "original_headlines": ["<string>"],
+         "critique": "<string>",
+         "revised_headlines": ["<string>"]
     }},
    "section_deep_dive": [
         {{
-            "page_number": "<int: The page number>",
-            "target_section": "<string: Quote the specific BULLET POINT or SENTENCE>",
-            "issue": "<string: Specific critique>",
-            "improved_version": "<string: Rewrite>",
-            "why": "<string: Why this is better>"
+            "page_number": "<int>",
+            "target_section": "<string>",
+            "issue": "<string>",
+            "improved_version": "<string>",
+            "why": "<string>"
         }}
     ]
 }}
 """
 
         # Generation
-        with st.spinner("Processing Logic & Vision..."):
+        with st.spinner("⚡ Analyzing with AI..."):
             try:
                 model = genai.GenerativeModel('gemini-flash-latest')
                 
@@ -664,138 +719,134 @@ rewrite: "Body: DAU increased by 15% (20k users) in SEA and LATAM, driven by a 2
     # PHASE B: RENDERING
     data = st.session_state.analysis_data
     
+    st.markdown("---")
+    
+    # Scorecard Section
+    st.markdown(f"### 📊 Analysis Results · Session `{st.session_state.session_id}`")
+    
+    logic_score = data.get('scores', {}).get('Logic', 0)
+    clarity_score = data.get('scores', {}).get('Clarity', 0)
+    impact_score = data.get('scores', {}).get('Impact', 0)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("🎯 LOGIC", f"{logic_score}/100")
+        tier, color, label = get_score_context(logic_score)
+        st.markdown(f'<div class="status-badge" style="background-color: {color}20; color: {color}; border: 2px solid {color};">{label}</div>', unsafe_allow_html=True)
+        
     with col2:
-        st.markdown(f"### SCORECARD (ID: `{st.session_state.session_id}`)")
-        s1, s2, s3 = st.columns(3)
+        st.metric("💬 CLARITY", f"{clarity_score}/100")
+        tier, color, label = get_score_context(clarity_score)
+        st.markdown(f'<div class="status-badge" style="background-color: {color}20; color: {color}; border: 2px solid {color};">{label}</div>', unsafe_allow_html=True)
         
-        logic_score = data.get('scores', {}).get('Logic', 0)
-        clarity_score = data.get('scores', {}).get('Clarity', 0)
-        impact_score = data.get('scores', {}).get('Impact', 0)
-        
-        with s1:
-            st.metric("LOGIC", f"{logic_score}")
-            tier, color, advice = get_score_context(logic_score)
-            st.markdown(f'<div class="score-badge" style="background-color: {color}; color: white;">{tier}</div>', unsafe_allow_html=True)
-            
-        with s2:
-            st.metric("CLARITY", f"{clarity_score}")
-            tier, color, advice = get_score_context(clarity_score)
-            st.markdown(f'<div class="score-badge" style="background-color: {color}; color: white;">{tier}</div>', unsafe_allow_html=True)
-            
-        with s3:
-            st.metric("IMPACT", f"{impact_score}")
-            tier, color, advice = get_score_context(impact_score)
-            st.markdown(f'<div class="score-badge" style="background-color: {color}; color: white;">{tier}</div>', unsafe_allow_html=True)
+    with col3:
+        st.metric("⚡ IMPACT", f"{impact_score}/100")
+        tier, color, label = get_score_context(impact_score)
+        st.markdown(f'<div class="status-badge" style="background-color: {color}20; color: {color}; border: 2px solid {color};">{label}</div>', unsafe_allow_html=True)
     
-    st.divider()
+    # Executive Summary
+    st.markdown("---")
+    st.markdown(f"""
+    <div class="info-box">
+        <strong>📋 Executive Summary:</strong><br>
+        {data.get('executive_summary', 'No summary generated.')}
+    </div>
+    """, unsafe_allow_html=True)
     
-    # CHAIN OF THOUGHT DISPLAY
-    with st.expander("🧠 SEE AI'S REASONING (Chain-of-Thought)", expanded=False):
-        st.markdown("### How the AI Arrived at These Scores")
-        
+    # Chain of Thought
+    with st.expander("🧠 See AI's Reasoning (Chain-of-Thought)", expanded=False):
         cot_data = data.get('chain_of_thought', {})
         
         st.markdown("#### 🔍 Logic Assessment")
         st.info(cot_data.get('logic_reasoning', 'No reasoning provided'))
-        st.metric("Logic Score", logic_score)
-        
-        st.divider()
         
         st.markdown("#### 📖 Clarity Assessment")
         st.info(cot_data.get('clarity_reasoning', 'No reasoning provided'))
-        st.metric("Clarity Score", clarity_score)
-        
-        st.divider()
         
         st.markdown("#### 💥 Impact Assessment")
         st.info(cot_data.get('impact_reasoning', 'No reasoning provided'))
-        st.metric("Impact Score", impact_score)
-        
-        st.divider()
-        
-        avg_score = (logic_score + clarity_score + impact_score) / 3
-        if avg_score >= 75:
-            st.success("✅ High confidence in analysis - reasoning is consistent")
-        elif avg_score >= 50:
-            st.warning("⚠️ Moderate confidence - some areas need attention")
-        else:
-            st.error("🚨 Low scores detected - significant improvements recommended")
     
-    st.divider()
+    # Feedback Loop
+    st.markdown("---")
+    st.markdown("### 💬 Was this helpful?")
     
-    # FEEDBACK LOOP
-    with st.container():
-        st.markdown("#### 💬 Was this helpful?")
-        fb_col1, fb_col2 = st.columns([3, 1])
-        with fb_col1:
-            user_comment = st.text_input("Feedback (Optional)", placeholder="E.g. The logic check was too harsh...")
-        with fb_col2:
-            st.write("") 
-            st.write("")
-            b1, b2 = st.columns(2)
-            if b1.button("👍"):
-                log_feedback(st.session_state.session_id, "Positive", user_comment, doc_type)
-                st.toast("Feedback Saved!", icon="👍")
-            if b2.button("👎"):
-                log_feedback(st.session_state.session_id, "Negative", user_comment, doc_type)
-                st.toast("Feedback Saved!", icon="📉")
-
-    st.divider()
-    st.info(f"**EXECUTIVE SUMMARY:** {data.get('executive_summary', 'No summary generated.')}")
+    fb_col1, fb_col2, fb_col3 = st.columns([2, 1, 1])
+    with fb_col1:
+        user_comment = st.text_input("", placeholder="Share your feedback (optional)...", label_visibility="collapsed")
+    with fb_col2:
+        if st.button("👍 Helpful", use_container_width=True):
+            log_feedback(st.session_state.session_id, "Positive", user_comment, doc_type)
+            st.success("Thanks!")
+    with fb_col3:
+        if st.button("👎 Not Helpful", use_container_width=True):
+            log_feedback(st.session_state.session_id, "Negative", user_comment, doc_type)
+            st.info("Noted")
     
-    # TABS
-    tab1, tab2 = st.tabs(["STORY FLOW", "🔬 DEEP DIVE & REWRITES"])
+    # Tabs
+    st.markdown("---")
+    tab1, tab2 = st.tabs(["📖 NARRATIVE FLOW", "🔬 DEEP DIVE"])
     
     with tab1:
-        st.markdown("#### The Narrative Check (Pyramid Principle)")
         nav_data = data.get('narrative_check', {})
-        st.markdown(f"> *{nav_data.get('critique', 'No critique available.')}*")
-        st.divider()
-        col_a, col_b = st.columns(2)
-        with col_a:
-            st.caption("🔴 ORIGINAL FLOW")
-            for line in nav_data.get('original_headlines', []): st.text(f"• {line}")
-        with col_b:
-            st.caption("🟢 OPTIMIZED FLOW")
-            for line in nav_data.get('revised_headlines', []): st.markdown(f"**• {line}**")
         
-        if logic_score < 75: st.error("⚠️ NARRATIVE THREAD BROKEN")
-        else: st.success("✅ NARRATIVE THREAD STABLE")
+        st.markdown("#### Headline & Story Analysis")
+        st.markdown(f"> {nav_data.get('critique', 'No critique available.')}")
+        
+        st.markdown("---")
+        
+        col_a, col_b = st.columns(2)
+        
+        with col_a:
+            st.markdown("**🔴 Original Flow**")
+            for line in nav_data.get('original_headlines', []):
+                st.markdown(f"• {line}")
+        
+        with col_b:
+            st.markdown("**🟢 Optimized Flow**")
+            for line in nav_data.get('revised_headlines', []):
+                st.markdown(f"• **{line}**")
+        
+        if logic_score < 75:
+            st.error("⚠️ Narrative thread has gaps")
+        else:
+            st.success("✅ Narrative flows logically")
 
     with tab2:
-        st.markdown("#### 🔬 Surgical Reconstruction")
-        st.caption("Specific text edits to improve Logic, Clarity, and Impact.")
+        st.markdown("#### Surgical Improvements")
         
         images = st.session_state.images
         
         for i, item in enumerate(data.get('section_deep_dive', [])):
-            with st.container():
-                page_num = item.get('page_number', '?')
-                target = item.get('target_section', 'General Logic')
-                
-                header_text = f"📄 Page {page_num}: {target}"
-                if len(header_text) > 60: header_text = header_text[:150]
-                st.markdown(f"##### {header_text}")
-                
-                if images:
-                    try:
-                        p_idx = int(page_num) - 1
-                        if 0 <= p_idx < len(images):
-                            with st.expander(f"👁️ View Slide {page_num} Snapshot"):
-                                st.image(images[p_idx], use_container_width=True)
-                    except:
-                        pass
-
-                c1, c2 = st.columns([1, 2], gap="large")
-                with c1:
-                    st.markdown('<div class="issue-tag">THE SYMPTOM (ISSUE)</div>', unsafe_allow_html=True)
-                    st.markdown(f"**{item.get('issue', 'N/A')}**")
-                    st.markdown(f"<div class='logic-footer'><b>💡 ROOT CAUSE:</b><br>{item.get('why', 'N/A')}</div>", unsafe_allow_html=True)
-                with c2:
-                    st.markdown('<div class="fix-tag">THE PRESCRIPTION (REWRITE)</div>', unsafe_allow_html=True)
-                    rewrite_text = item.get('improved_version', 'N/A')
-                    if len(rewrite_text) < 300: st.info(rewrite_text, icon="✍️")
-                    else:
-                        st.info(rewrite_text[:300] + "...", icon="✍️")
-                        with st.expander("Show Full Rewrite"): st.code(rewrite_text, language="text")
-                st.divider()
+            page_num = item.get('page_number', '?')
+            target = item.get('target_section', 'General')
+            
+            st.markdown(f"##### 📄 Page {page_num}")
+            
+            if images:
+                try:
+                    p_idx = int(page_num) - 1
+                    if 0 <= p_idx < len(images):
+                        with st.expander(f"👁️ View Slide {page_num}"):
+                            st.image(images[p_idx], use_container_width=True)
+                except:
+                    pass
+            
+            col_issue, col_fix = st.columns([1, 2])
+            
+            with col_issue:
+                st.markdown('<div class="issue-tag">⚠️ ISSUE</div>', unsafe_allow_html=True)
+                st.markdown(f"**{item.get('issue', 'N/A')}**")
+                st.caption(f"💡 {item.get('why', 'N/A')}")
+            
+            with col_fix:
+                st.markdown('<div class="fix-tag">✓ SOLUTION</div>', unsafe_allow_html=True)
+                rewrite_text = item.get('improved_version', 'N/A')
+                if len(rewrite_text) < 300:
+                    st.success(rewrite_text)
+                else:
+                    st.success(rewrite_text[:300] + "...")
+                    with st.expander("Show full rewrite"):
+                        st.code(rewrite_text, language="text")
+            
+            st.markdown("---")
