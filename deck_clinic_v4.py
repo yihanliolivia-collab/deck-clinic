@@ -45,17 +45,92 @@ st.set_page_config(
 )
 
 # --- 2. CSS STYLING ---
+# Replace CSS with this brand-specific design:
+
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
-    h1, h2, h3, h4, h5 { font-weight: 700; color: #202124; letter-spacing: -0.5px; }
-    div[data-testid="stMetricValue"] { font-size: 1.8rem; background-color: #ffffff; padding: 10px; border-radius: 8px; border: 1px solid #e0e0e0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-    div.stButton > button { border-radius: 20px; border: 1px solid #dadce0; font-weight: 600; transition: all 0.2s; background-color: #ffffff; color: #3c4043; }
-    div.stButton > button:hover { background-color: #f1f3f4; border-color: #dadce0; transform: translateY(-1px); color: #202124; }
-    .issue-tag { background-color: #fce8e6; color: #c5221f; padding: 4px 12px; border-radius: 12px; font-weight: 600; font-size: 0.75rem; display: inline-block; margin-bottom: 8px; }
-    .fix-tag { background-color: #e6f4ea; color: #137333; padding: 4px 12px; border-radius: 12px; font-weight: 600; font-size: 0.75rem; display: inline-block; margin-bottom: 8px; }
-    .logic-footer { font-size: 0.85rem; color: #5f6368; background-color: #f8f9fa; padding: 12px; border-radius: 8px; margin-top: 10px; border: 1px solid #f1f3f4; }
+    /* TYPOGRAPHY: Technical + Editorial Mix */
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Fraunces:wght@700;900&display=swap');
+    
+    html, body, [class*="css"] { 
+        font-family: 'JetBrains Mono', monospace;
+        background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+        color: #e8e8e8;
+    }
+    
+    h1, h2, h3 { 
+        font-family: 'Fraunces', serif; 
+        font-weight: 900;
+        background: linear-gradient(120deg, #00f5a0 0%, #00d9f5 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -2px;
+    }
+    
+    /* SCORE CARDS: Clinical + Precise */
+    div[data-testid="stMetricValue"] {
+        font-size: 3rem;
+        font-family: 'JetBrains Mono', monospace;
+        background: rgba(0, 245, 160, 0.1);
+        border: 2px solid #00f5a0;
+        border-radius: 4px;
+        padding: 20px;
+        box-shadow: 0 0 20px rgba(0, 245, 160, 0.3);
+        position: relative;
+    }
+    
+    /* Add Score Context Labels */
+    div[data-testid="stMetricValue"]::after {
+        content: attr(data-score-label);
+        position: absolute;
+        bottom: -25px;
+        left: 0;
+        font-size: 0.7rem;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    /* BUTTONS: Sharp Clinical UI */
+    div.stButton > button {
+        background: linear-gradient(135deg, #00f5a0 0%, #00d9f5 100%);
+        color: #0a0a0a;
+        border: none;
+        border-radius: 0;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        padding: 12px 32px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    div.stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 245, 160, 0.4);
+    }
+    
+    /* ISSUE/FIX TAGS: Medical Chart Style */
+    .issue-tag {
+        background: rgba(255, 59, 48, 0.2);
+        color: #ff3b30;
+        border-left: 4px solid #ff3b30;
+        padding: 8px 16px;
+        font-family: 'JetBrains Mono', monospace;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+    }
+    
+    .fix-tag {
+        background: rgba(0, 245, 160, 0.2);
+        color: #00f5a0;
+        border-left: 4px solid #00f5a0;
+        padding: 8px 16px;
+        font-family: 'JetBrains Mono', monospace;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
